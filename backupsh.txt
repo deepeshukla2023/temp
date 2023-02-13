@@ -1,0 +1,34 @@
+#################################################################################    
+# SCRIPT TO Automate the Backup process for Postgresql, Mongo and ApacheTomcat
+#              Written By Karthik on 3/27/2015
+###############################################################################
+
+#!/bin/bash
+
+set -x
+CUR_DATE=`date +%m-%d-%y`;
+mkdir -p /backup/$CUR_DATE/postgresql
+mkdir -p /backup/$CUR_DATE/mongo
+mkdir -p /backup/$CUR_DATE/tomcat
+MONGODUMP=/usr/share/mongodb/bin/mongodump
+
+#RHEVM POSTGRESQL DATABASE BACKUP From 10.115.252.17
+ssh 10.115.252.17 "rm -f /var/lib/pgsql/dump.sql && su - postgres <<EOS 
+/usr/bin/pg_dump engine > dump.sql 
+EOS"
+scp 10.115.252.17:/var/lib/pgsql/dump.sql /backup/$CUR_DATE/postgresql/
+
+#Mongo DB Backup From 10.115.252.16
+
+ssh 10.115.252.16 'rm -rf /usr/local/scripts/mongo/mongodump'
+ssh 10.115.252.16 '/usr/share/mongodb/bin/mongodump --db sifystore -u cloudwebuser -pcl0udp@ss --out /usr/local/scripts/mongo/mongodump'
+scp -r 10.115.252.16:/usr/local/scripts/mongo/mongodump  /backup/$CUR_DATE/mongo/
+tar -cvzf /backup/$CUR_DATE/mongo/mongodump.tar.gz /backup/$CUR_DATE/mongo/mongodump
+rm -rf /backup/$CUR_DATE/mongo/mongodump
+
+#Tomcat Backup From 10.115.252.15
+
+scp 10.115.252.15:/opt/apache-tomcat/conf/server.xml /backup/$CUR_DATE/tomcat
+scp -r 10.115.252.15:/opt/apache-tomcat/webapps/cloudstore* /backup/$CUR_DATE/tomcat/
+tar -cvzf /backup/$CUR_DATE/tomcat/cloudstore.tar.gz   /backup/$CUR_DATE/tomcat/*
+rm -rf /backup/$CUR_DATE/tomcat/cloudstore cloudstore.war
